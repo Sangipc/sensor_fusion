@@ -34,15 +34,15 @@ class Scanner:
 
         return xsens_dot_devices
 
-def assign_payload_type(value):
-    if value == 0:
-        return ble_sensor.PayloadMode.orientationEuler
-    elif value == 1:
-        return ble_sensor.PayloadMode.orientationQuaternion
-    elif value == 2:
-        return ble_sensor.PayloadMode.customMode1
-    elif value == 3:
-        return ble_sensor.PayloadMode.rateQuantities
+# def assign_payload_type(value):
+#     if value == 0:
+#         return ble_sensor.PayloadMode.orientationEuler
+#     elif value == 1:
+#         return ble_sensor.PayloadMode.orientationQuaternion
+#     elif value == 2:
+#         return ble_sensor.PayloadMode.customMode1
+#     elif value == 3:
+#         return ble_sensor.PayloadMode.rateQuantities
 
 
 
@@ -57,7 +57,9 @@ async def main():
     sensors = []
     for d in devices:
         sensors.append(BleSensor(d.address))
-
+    root_sensor = sensors[0]
+    #print(root_sensor)
+    #print(root_sensor.address)
     print("start to connect:")
     for s in sensors:
         await s.connect()
@@ -73,26 +75,20 @@ async def main():
     print("set sensor output rate, only these values allowed: 1, 4, 10, 12, 15, 20, 30, 60, 120")
     for s in sensors:
         await s.setOuputRate(30)
-
-    print("Enter the Payload Type you wish to measure:")
-    print("0: orientationEuler")
-    print("1: orientationQuaternion")
-    print("2: customMode1")
-    print("3: rateQuantities")
-    try:
-        value = int(input("Enter the number corresponding to the Payload Type: "))
-        for s in sensors:
-            s.payloadType = assign_payload_type(value)
-            await s.startMeasurement()
-    except (ValueError, KeyError):
-        print("Invalid input. Please enter a number between 0 and 3.")
-    print("\nNotifications enabled. Waiting for data...")
-
     syncManager = SyncManager(sensors)
-
     for s in sensors:
         s.syncManager = syncManager
-    await syncManager.startSyncing()
+    # await syncManager.startSyncing()
+
+    for s in sensors:
+        s.payloadType = ble_sensor.PayloadMode.rateQuantities
+        await s.startMeasurement(root_sensor)
+
+    print("\nNotifications enabled. Waiting for data...")
+
+
+
+
     # heading reset
     await asyncio.sleep(0.2)  # wait for response
     print("Start Recording")

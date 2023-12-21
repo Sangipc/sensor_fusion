@@ -1,6 +1,7 @@
 from events_manager import listen
 import time
 import asyncio
+import struct
 
 class SyncManager:
     isInSyncingProgress = False
@@ -11,12 +12,21 @@ class SyncManager:
         self.globalSyncingSensors = []
         self.syncingTimeoutId = -1
         self.syncingDoneList = []
+        self.root_timestamp = 0
         #self.init()
     
-    # def init(self):
+    # def init(self):9
     #     listen('syncingEvent', self.eventHandler, False, eventName, parameters)
+    def timestamp_handler(self,data):
+        hexData = data.hex()
+        time = self.timeStampConvert(hexData)
+        self.root_timestamp = time
+        print("Root Adress timestamp",self.root_timestamp)
 
-    
+
+    def timeStampConvert(self, data):
+        t = bytes.fromhex(data[:8])
+        return struct.unpack('<I', t)[0]
     def eventHandler(self, eventName, parameters):
         print(parameters.sensor.address + " Syncing eventName " + eventName)
         switcher = {
@@ -55,7 +65,7 @@ class SyncManager:
         self.currentProgress = 0
         self.syncingDoneList = []
         isSuccess = False
-        rootAddress = ""
+        rootAddress = "D4:22:CD:00:80:C9"
         for sensor in self.sensors:
             if rootAddress == "":
                 rootAddress = sensor.address

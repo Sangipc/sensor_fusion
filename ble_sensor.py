@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import bleak
 import asyncio
 import time
@@ -22,9 +24,10 @@ class PayloadMode(Enum):
     rateQuantities = 3
 class BleSensor:
     BLE_MID_SYNCING                      = 0x02
-    BLE_UUID_RECORDING_CONTROL           = "15177001494711e98646d663bd873d93"
+    BLE_UUID_RECORDING_CONTROL           = "15177001-4947-11e9-8646-d663bd873d93"
     SYNCING_ID_SYNCING_RESULT            = 0x03
-    BLE_UUID_RECORDING_ACK               = "15177002494711e98646d663bd873d93"
+    SYNCING_ID_START_SYNCING             = 0x01
+    BLE_UUID_RECORDING_ACK               = "15177002-4947-11e9-8646-d663bd873d93"
     DOT_Configuration_ServiceUUID         = "15171000-4947-11E9-8646-D663BD873D93"
     DOT_Configuration_Control_CharacteristicUUID = "15171002-4947-11E9-8646-D663BD873D93"
     DOT_Measure_ServiceUUID = "15172000-4947-11E9-8646-D663BD873D93"
@@ -57,8 +60,9 @@ class BleSensor:
         self.payloadType = None
         self.characteristics = []
         self.syncManager = None
-        self.systemTimestamp = 0
+        self.syncTimestamp = 0
         self.sensorTimestamp = 0
+        self.root_sensor = None
 
     async def readRecordingAck(self):
         data = await self._client.read_gatt_char[self.BLE_UUID_RECORDING_ACK]        
@@ -71,7 +75,7 @@ class BleSensor:
             isSuccess = (data[3] == 0x00)
             self.sendSyncingEvent('bleSensorSyncingDone', {'sensor': self, 'isSuccess': isSuccess})
 
-    def checkSum(byte_array):
+    def checkSum(self,byte_array):
         _sum = 0
 
         for byte in byte_array:
@@ -92,13 +96,18 @@ class BleSensor:
                 return False
         data = []
         data.append(self.BLE_MID_SYNCING) # MID
+        #print(data)
         data.append(0x07) # LEN, exclude checkSum
         data.append(self.SYNCING_ID_START_SYNCING)
+        print(data)
         for i in range(len(addressSlice)):
             data.append(int(addressSlice[len(addressSlice) - i - 1], 16))
+        print(data)
         data.append(self.checkSum(data))
+        print(data)
         buffer = bytes(data)
-        await self._client.write_gatt_char(self.BLE_UUID_RECORDING_CONTROL, buffer)
+        await self._client.write_gatt_char(self.BLE_UUID_RECORDING_CONTROL, buffer, response=False)
+        print(f"Successfully wrote data to characteristic")
         await asyncio.sleep(0.1)  # wait for response
 
     def sendSyncingEvent( eventName, parameters ):
@@ -145,23 +154,29 @@ class BleSensor:
         self._client = bleak.BleakClient(self.address)
         await self._client.connect()
         for service in self._client.services:
-            print("[Service] {}".format(service))
+            # print("[Service] {}".format(service))
             for char in service.characteristics:
                 if "read" in char.properties:
                     value = await self._client.read_gatt_char(char.uuid)
-                    print("[Characteristic] {} {}, Value: {}".format(char, ','.join(char.properties), value))
+                    # print("[Characteristic] {} {}, Value: {}".format(char, ','.join(char.properties), value))
 
 
     async def enable_sensor(self, control_uuid, payload):
         await self._client.write_gatt_char(control_uuid, payload)
         await asyncio.sleep(0.1)  # wait for response
 
-    async def startMeasurement(self):
+
+
+    async def startMeasurement(self, root_sensor):
+        self.root_sensor = root_sensor
         if self.payloadType == PayloadMode.orientationEuler:
             print("PayloadMode = orientationEuler")
-            await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_Orientation_Euler)
             await self._client.start_notify(self.DOT_ShortPayload_CharacteristicUUID,
                                             self.orientationEuler_notification_handler)
+            await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_Orientation_Euler)
+
+
+
         elif self.payloadType == PayloadMode.orientationQuaternion:
             print("PayloadMode = orientationQuaternion")
             await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_Orientation_Quaternion)
@@ -177,6 +192,12 @@ class BleSensor:
             await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_ratequantities)
             await self._client.start_notify(self.DOT_MediumPayload_CharacteristicUUID,
                                             self.rateQuantities_notification_handler)
+            # if self.address == root_sensor.address:
+            #     print("Inside If")
+            #     await self._client.start_notify(self.DOT_MediumPayload_CharacteristicUUID,
+            #                                     self.syncManager.timestamp_handler)
+
+
 
     # Disconnecting sensors and Stop Measurement
     async def disable_sensor(self, control_uuid, payload):
@@ -269,28 +290,30 @@ class BleSensor:
 
     # def convertSensorData(sensor, data, measuringPayloadId, isSyncingEnabled):
     #     if isSyncingEnabled:
-    #         self.systemTimestamp = self.timeStampConvert(data)
+    #         self.syncTimestamp = self.timeStampConvert(data)
     #     else:
     #         hrTime = process.hrtime()
     #         systemtime = hrTime[0] * 1000000 + hrTime[1] / 1000
     #         self.setSynchronizedTimestamp(data, systemtime)
 
     def setSynchronizedTimestamp(self, data):
-        systemTime = time.time()
+        # dt = datetime.now()
+        # systemTime = dt.microsecond
+        rootTime = self.syncManager.root_timestamp
 
         sensorTimestamp = self.timeStampConvert(data)
-        if self.systemTimestamp == 0:
-            self.systemTimestamp = int(round(systemTime))
+        if self.syncTimestamp == 0:
+            self.syncTimestamp = rootTime
             sensorTimestamp = sensorTimestamp
             return
         sensorTimeDiff = sensorTimestamp - self.sensorTimestamp
         if sensorTimeDiff < 0:
             sensorTimeDiff += self.ROLLOVER
         self.sensorTimestamp = sensorTimestamp
-        self.systemTimestamp = self.systemTimestamp + sensorTimeDiff*(1+self.CLOCK_DELTA)
-        if self.systemTimestamp > systemTime:
-            self.systemTimestamp = int(round(systemTime))
-        return self.systemTimestamp
+        self.syncTimestamp = self.syncTimestamp + sensorTimeDiff*(1+self.CLOCK_DELTA)
+        if self.syncTimestamp > rootTime:
+            self.syncTimestamp = rootTime
+        return self.syncTimestamp
 
     def accConvert(self, data):
         AccX = struct.unpack('<f', bytes.fromhex(data[8:16]))[0]
@@ -380,6 +403,10 @@ class BleSensor:
             self.record_data(dotdata)
 
     def rateQuantities_notification_handler(self, sender, data):
+        # print('sender', sender)
+        if self.root_sensor.address == self.address:
+            # print("Inside If")
+            self.syncManager.timestamp_handler(data)
         hexData = data.hex()
         time = self.setSynchronizedTimestamp(hexData)
         acc = self.accConvert(hexData)
