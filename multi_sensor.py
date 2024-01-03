@@ -82,8 +82,12 @@ async def main():
 
     for s in sensors:
         s.payloadType = ble_sensor.PayloadMode.rateQuantities
-        await s.startMeasurement(root_sensor)
+        acc = await s.startMeasurement(root_sensor)
 
+
+    print("Printing from multi_sensor")
+
+    # print(gyr,'Gyroscope')
     print("\nNotifications enabled. Waiting for data...")
 
 

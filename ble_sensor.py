@@ -8,6 +8,7 @@ import os
 import csv
 import numpy as np
 from enum import Enum
+from qmt import jointAxisEstHingeOlsson
 
 class DotData:
     def __init__(self):
@@ -63,6 +64,7 @@ class BleSensor:
         self.syncTimestamp = 0
         self.sensorTimestamp = 0
         self.root_sensor = None
+        self.received_data = []
 
     async def readRecordingAck(self):
         data = await self._client.read_gatt_char[self.BLE_UUID_RECORDING_ACK]        
@@ -175,8 +177,6 @@ class BleSensor:
                                             self.orientationEuler_notification_handler)
             await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_Orientation_Euler)
 
-
-
         elif self.payloadType == PayloadMode.orientationQuaternion:
             print("PayloadMode = orientationQuaternion")
             await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_Orientation_Quaternion)
@@ -192,6 +192,8 @@ class BleSensor:
             await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_ratequantities)
             await self._client.start_notify(self.DOT_MediumPayload_CharacteristicUUID,
                                             self.rateQuantities_notification_handler)
+        return self.received_data
+
             # if self.address == root_sensor.address:
             #     print("Inside If")
             #     await self._client.start_notify(self.DOT_MediumPayload_CharacteristicUUID,
@@ -299,7 +301,8 @@ class BleSensor:
     def setSynchronizedTimestamp(self, data):
         # dt = datetime.now()
         # systemTime = dt.microsecond
-        rootTime = self.syncManager.root_timestamp
+        rootTime = time.time()
+        # rootTime = self.syncManager.root_timestamp
 
         sensorTimestamp = self.timeStampConvert(data)
         if self.syncTimestamp == 0:
@@ -404,9 +407,9 @@ class BleSensor:
 
     def rateQuantities_notification_handler(self, sender, data):
         # print('sender', sender)
-        if self.root_sensor.address == self.address:
-            # print("Inside If")
-            self.syncManager.timestamp_handler(data)
+        # if self.root_sensor.address == self.address:
+        #     # print("Inside If")
+        #     self.syncManager.timestamp_handler(data)
         hexData = data.hex()
         time = self.setSynchronizedTimestamp(hexData)
         acc = self.accConvert(hexData)
@@ -440,6 +443,11 @@ class BleSensor:
             dotdata.angularVelocity = gyro
             dotdata.magneticField = mag
             self.record_data(dotdata)
+            self.received_data.append(acc)
+
+
+
+
 
     # Store data into CSV
     def create_csvfile(self):
