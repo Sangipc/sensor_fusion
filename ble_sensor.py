@@ -433,7 +433,7 @@ class BleSensor:
             dotdata.magneticField = mag
             self.record_data(dotdata)
 
-            asyncio.create_task(self.add_to_queue([acc,gyro], self.queue))
+            asyncio.create_task(self.add_to_queue([acc,gyro,mag], self.queue))
 
     # Store data into CSV
     def create_csvfile(self):

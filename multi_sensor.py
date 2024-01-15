@@ -4,10 +4,13 @@ import bleak
 import time
 import sys
 import qmt
+import vqf
+from vqf import VQF, BasicVQF, PyVQF
 #from qmt import jointAxisEstHingeOlsson
 import ble_sensor
 from ble_sensor import BleSensor
 from sync_manager import SyncManager
+vqf = VQF(0.01)
 class Scanner:
     def __init__(self):
         self._client = None
@@ -103,6 +106,7 @@ async def read_sensor(queue):
     print("exit program")
     await sys.exit(0)
 
+# UNCOMMENT BELOW LINES FOR PROCESSING DATA USING QMT jointAxisEstHingeOlsson
 # async def process_data(queue):
 #     count = 0
 #     # acc1 = np.empty((0, 3))
@@ -174,6 +178,15 @@ async def read_sensor(queue):
 #
 #         #print(f"Acc: {sensor_data[0]}, Gyro: {sensor_data[1]}")
 #         #await asyncio.sleep(1)
+
+async def process_data(queue):
+    global vqf
+    while True:
+        sensor_data = await queue.get()
+        acc, gyr, mag = sensor_data
+        out = vqf.update(gyr, acc)
+        print(out)
+        await asyncio.sleep(1/0.01)
 
 
 async def main():
