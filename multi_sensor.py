@@ -10,7 +10,8 @@ from vqf import VQF, BasicVQF, PyVQF
 import ble_sensor
 from ble_sensor import BleSensor
 from sync_manager import SyncManager
-vqf = VQF(0.01)
+vqf_sensor1 = VQF(0.01)
+vqf_sensor2 = VQF(0.01)
 class Scanner:
     def __init__(self):
         self._client = None
@@ -38,17 +39,19 @@ class Scanner:
 
         return xsens_dot_devices
 
-async def read_sensor(queue):
+async def read_sensor(queue1, queue2):
     devices = await Scanner.scan_and_filter_xsens_dot()
 
     if not devices:
         print("No Xsens DOT, considering turn them on or shake them from sleep mode")
         return
-    queue = queue
+    queue1 = queue1
+    queue2 = queue2
     sensors = []
     for d in devices:
         sensor = BleSensor(d.address)
-        sensor.queue = queue
+        sensor.queue1 = queue1
+        sensor.queue2 = queue2
         sensors.append(sensor)
     root_sensor = sensors[0]
     #print(root_sensor)
@@ -179,23 +182,70 @@ async def read_sensor(queue):
 #         #print(f"Acc: {sensor_data[0]}, Gyro: {sensor_data[1]}")
 #         #await asyncio.sleep(1)
 
-async def process_data(queue):
-    global vqf
+async def process_data(queue1, queue2):
+    global vqf_sensor1
+    global vqf_sensor2
     while True:
-        sensor_data = await queue.get()
-        acc, gyr, mag = sensor_data
-        out = vqf.update(gyr, acc)
-        print(out)
-        await asyncio.sleep(1/0.01)
+        sensor1_data = await queue1.get()
+        sensor2_data = await queue2.get()
 
+        # Initialize empty arrays to store stacked data
+        acc_sensor1_stacked = np.empty((0, 3))
+        gyr_sensor1_stacked = np.empty((0, 3))
+        mag_sensor1_stacked = np.empty((0, 3))
+
+        acc_sensor2_stacked = np.empty((0, 3))
+        gyr_sensor2_stacked = np.empty((0, 3))
+        mag_sensor2_stacked = np.empty((0, 3))
+
+        # Stack data for each sensor
+        for sensor1_reading, sensor2_reading in zip(sensor1_data, sensor2_data):
+            acc_sensor1, gyr_sensor1, mag_sensor1 = sensor1_reading
+            acc_sensor2, gyr_sensor2, mag_sensor2 = sensor2_reading
+
+            # Stack accelerometer data
+            acc_sensor1_stacked = np.vstack((acc_sensor1_stacked, acc_sensor1))
+            acc_sensor2_stacked = np.vstack((acc_sensor2_stacked, acc_sensor2))
+
+            # Stack gyroscope data
+            gyr_sensor1_stacked = np.vstack((gyr_sensor1_stacked, gyr_sensor1))
+            gyr_sensor2_stacked = np.vstack((gyr_sensor2_stacked, gyr_sensor2))
+
+
+        sensor1_quat = vqf_sensor1.updateBatch(gyr_sensor1_stacked, acc_sensor1_stacked, mag=None)
+        sensor2_quat = vqf_sensor1.updateBatch(gyr_sensor2_stacked, acc_sensor2_stacked, mag=None)
+        inclination = await calculate_inclination(sensor1_quat['quat6D'], sensor2_quat['quat6D'])
+        print("Inclination: ", inclination.mean())
+
+        # vqf_sensor2.update(gyr_sensor1_stacked, acc_sensor1_stacked, mag=None)
+        # orientation_quaternion_6d = vqf.getQuat6D()
+        #
+        # if count % 2 == 0:
+        #     q2 = orientation_quaternion_6d
+        #     inclination = await calculate_inclination(q1, q2)
+        #     print("inclination",inclination)
+        # else:
+        #     q1 = orientation_quaternion_6d
+        #print(count)
+        await asyncio.sleep(0.01)
+    #await asyncio.sleep(1/0.01)
+
+async def calculate_inclination(Q1, Q2):
+    inv_Q2 = qmt.qinv(Q2)
+    relative_quaternion = Q1 * inv_Q2
+    #print("relative_quaternion", relative_quaternion)
+    heading, inclination = qmt.headingInclinationAngle(relative_quaternion)
+    inclination = np.degrees(inclination)
+    return inclination
 
 async def main():
     # Create an asyncio queue
-    queue = asyncio.Queue()
+    queue1 = asyncio.Queue()
+    queue2 = asyncio.Queue()
 
     # Run both tasks concurrently
-    task1 = asyncio.create_task(read_sensor(queue))
-    task2 = asyncio.create_task(process_data(queue))
+    task1 = asyncio.create_task(read_sensor(queue1, queue2))
+    task2 = asyncio.create_task(process_data(queue1, queue2))
 
     # Wait for both tasks to complete
     await asyncio.gather(task1, task2)

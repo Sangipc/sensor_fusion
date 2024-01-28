@@ -64,7 +64,11 @@ class BleSensor:
         self.syncTimestamp = 0
         self.sensorTimestamp = 0
         self.root_sensor = None
-        self.queue = asyncio.Queue()
+        self.queue1 = asyncio.Queue()
+        self.queue2 = asyncio.Queue()
+        self.count = 1
+        self.data_queue1 = []
+        self.data_queue2 = []
 
     async def readRecordingAck(self):
         data = await self._client.read_gatt_char[self.BLE_UUID_RECORDING_ACK]        
@@ -397,8 +401,15 @@ class BleSensor:
             dotdata.quaternion = quat
             self.record_data(dotdata)
 
-    async def add_to_queue(self, sensor_data, queue):
-        await queue.put(sensor_data)
+    async def add_to_queue(self, sensor_data, queue_str, queue):
+        queue_data = getattr(self, f"data_{queue_str}")
+        queue_data.append(sensor_data)
+
+        if len(queue_data) == 10:
+            #print(queue_data)
+            await queue.put(queue_data)
+            setattr(self, f"data_{queue_str}", [])
+            await asyncio.sleep(0.01)
 
     def rateQuantities_notification_handler(self, sender, data):
         hexData = data.hex()
@@ -421,8 +432,13 @@ class BleSensor:
         stringToPrint += " magX: {:.4f}, magY: {:.4f}, magZ: {:.4f}".format(magX, magY, magZ)
         stringToPrint += " "
 
-        # print(stringToPrint)
-
+        #print(stringToPrint)
+        #print(self.count)
+        if self.count % 2 == 0:
+            asyncio.create_task(self.add_to_queue([acc, gyro, mag], "queue2", self.queue2))
+        else:
+            asyncio.create_task(self.add_to_queue([acc, gyro, mag], "queue1", self.queue1))
+        self.count += 1
         if self.recordFlag:
             dotdata = DotData()
             dotdata.name = self.name
@@ -433,7 +449,7 @@ class BleSensor:
             dotdata.magneticField = mag
             self.record_data(dotdata)
 
-            asyncio.create_task(self.add_to_queue([acc,gyro,mag], self.queue))
+
 
     # Store data into CSV
     def create_csvfile(self):
