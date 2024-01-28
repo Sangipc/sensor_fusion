@@ -1,13 +1,19 @@
 from datetime import datetime
+from multiprocessing.queues import Queue
 
 import bleak
 import asyncio
+import aioprocessing
 import time
 import struct
 import os
 import csv
 import numpy as np
 from enum import Enum
+import multiprocessing
+from multiprocessing import Manager, Process
+
+
 # from qmt import jointAxisEstHingeOlsson
 
 class DotData:
@@ -51,7 +57,7 @@ class BleSensor:
     ROLLOVER = 4294967295
     CLOCK_DELTA = 0.0002
 
-    def __init__(self, address):
+    def __init__(self, address, queue):
         self._client = None
         self.dotdata = []
         self.name = []
@@ -63,15 +69,15 @@ class BleSensor:
         self.syncManager = None
         self.syncTimestamp = 0
         self.sensorTimestamp = 0
-        self.root_sensor = None
-        self.queue1 = asyncio.Queue()
-        self.queue2 = asyncio.Queue()
-        self.count = 1
-        self.data_queue1 = []
-        self.data_queue2 = []
+        self.queue = queue
+        # manager = multiprocessing.Manager()
+        # self.imu_queues = manager.dict()
+        # with Manager() as manager:
+        #     self.queue = manager.Queue()
+
 
     async def readRecordingAck(self):
-        data = await self._client.read_gatt_char[self.BLE_UUID_RECORDING_ACK]        
+        data = await self._client.read_gatt_char[self.BLE_UUID_RECORDING_ACK]
         print(self.address + " BLE_UUID_RECORDING_ACK read " + data.hex())
         if error:
             return
@@ -173,8 +179,8 @@ class BleSensor:
 
 
 
-    async def startMeasurement(self, root_sensor):
-        self.root_sensor = root_sensor
+    async def startMeasurement(self):
+        print("starting measurement")
         if self.payloadType == PayloadMode.orientationEuler:
             print("PayloadMode = orientationEuler")
             await self._client.start_notify(self.DOT_ShortPayload_CharacteristicUUID,
@@ -196,6 +202,7 @@ class BleSensor:
             await self.enable_sensor(self.DOT_Control_CharacteristicUUID, self.Select_ratequantities)
             await self._client.start_notify(self.DOT_MediumPayload_CharacteristicUUID,
                                             self.rateQuantities_notification_handler)
+
 
     # Disconnecting sensors and Stop Measurement
     async def disable_sensor(self, control_uuid, payload):
@@ -401,17 +408,14 @@ class BleSensor:
             dotdata.quaternion = quat
             self.record_data(dotdata)
 
-    async def add_to_queue(self, sensor_data, queue_str, queue):
-        queue_data = getattr(self, f"data_{queue_str}")
-        queue_data.append(sensor_data)
-
-        if len(queue_data) == 10:
-            #print(queue_data)
-            await queue.put(queue_data)
-            setattr(self, f"data_{queue_str}", [])
+    async def add_to_queue(self, sensor_data):
+        if self.queue is not None:
+            self.queue.put(sensor_data)
+            #print("Data in queue")
             await asyncio.sleep(0.01)
 
     def rateQuantities_notification_handler(self, sender, data):
+
         hexData = data.hex()
         time = self.setSynchronizedTimestamp(hexData)
         acc = self.accConvert(hexData)
@@ -431,14 +435,10 @@ class BleSensor:
 
         stringToPrint += " magX: {:.4f}, magY: {:.4f}, magZ: {:.4f}".format(magX, magY, magZ)
         stringToPrint += " "
-
         #print(stringToPrint)
-        #print(self.count)
-        if self.count % 2 == 0:
-            asyncio.create_task(self.add_to_queue([acc, gyro, mag], "queue2", self.queue2))
-        else:
-            asyncio.create_task(self.add_to_queue([acc, gyro, mag], "queue1", self.queue1))
-        self.count += 1
+        sensor_data = {'gyro': gyro, 'acc': acc}
+        asyncio.create_task(self.add_to_queue(sensor_data))
+
         if self.recordFlag:
             dotdata = DotData()
             dotdata.name = self.name
@@ -448,6 +448,7 @@ class BleSensor:
             dotdata.angularVelocity = gyro
             dotdata.magneticField = mag
             self.record_data(dotdata)
+
 
 
 
@@ -503,4 +504,5 @@ class BleSensor:
                                  round(data.angularVelocity[1], 6), round(data.angularVelocity[2], 6),
                                  round(data.magneticField[0], 6), round(data.magneticField[1], 6),
                                  round(data.magneticField[2], 6)])
+
 
