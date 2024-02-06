@@ -161,7 +161,7 @@ def main():
     for id in range(N):
         process = run_process(always_read_imu, id,sensor_dict)
         processes.append(process)
-    print("This is the queue", sensor_dict)
+    #print("This is the queue", sensor_dict)
     process = run_process(always_process_data, sensor_dict)
     processes.append(process)
 
