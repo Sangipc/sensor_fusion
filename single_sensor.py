@@ -1,6 +1,8 @@
 import asyncio
+import queue
 from functools import partial
 import time
+import threading
 import multiprocessing
 from vqf import VQF
 import numpy as np
@@ -149,24 +151,26 @@ def always_process_data(sensor_dict):
         time.sleep(still_wait)
         t = time.time()
 
-
+def run_thread(fn, *args):
+    "Create and start a thread with the function `fn`"
+    thread = threading.Thread(target=fn, args=args)
+    thread.start()
+    return thread
 def main():
-    manager = multiprocessing.Manager()
-    sensor_dict = manager.dict()
+    sensor_dict = {}  # Regular dictionary, no need for Manager()
 
     devices = asyncio.run(Scanner.scan_and_filter_xsens_dot())
-    processes = []
+    threads = []
     for id in range(N):
-        sensor_dict[id] = manager.Queue()
-        process = run_process(always_read_imu, id, sensor_dict, devices)
-        processes.append(process)
+        sensor_dict[id] = queue.Queue()  # Regular Queue
+        thread = run_thread(always_read_imu, id, sensor_dict, devices)
+        threads.append(thread)
 
-    process = run_process(always_process_data, sensor_dict)
-    processes.append(process)
+    thread = run_thread(always_process_data, sensor_dict)
+    threads.append(thread)
 
-    for process in processes:
-        process.join()
-
+    for thread in threads:
+        thread.join()
 
 if __name__ == "__main__":
     main()
