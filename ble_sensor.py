@@ -275,7 +275,7 @@ class BleSensor:
         await asyncio.sleep(0.1)  # wait for response
 
     # Set Output rate
-    async def setOuputRate(self, outputRate: int):
+    async def setOutputRate(self, outputRate: int):
         if outputRate in [1, 4, 10, 12, 15, 20, 30, 60, 120]:
             bArr = bytearray(32)
             bArr[0] = 16
