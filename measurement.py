@@ -61,24 +61,4 @@ def always_read_imu(id, sensor_dict, devices):
 
     loop.run_until_complete(read_measurement_wrapper())
 
-def always_process_data(sensor_dict):
-    t = time.time()
-    while True:
-        data = {}
-        for id in range(N):
-            queue_data = sensor_dict.get(id)
-            data[id] = queue_data.get()
-            # print(data[id])
 
-        quats = dataprocessing.process_data(data)
-        # print(quats)
-        inclination = dataprocessing.calculate_inclination(quats[0], quats[1])
-        print(inclination)
-
-        compute_time = time.time() - t
-        still_wait = Ts - compute_time
-        if still_wait <= 0:
-            still_wait = 0
-
-        time.sleep(still_wait)
-        t = time.time()

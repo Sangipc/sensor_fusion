@@ -1,7 +1,8 @@
 import asyncio
 import multiprocessing
-import measurement
 
+import dataprocessing
+import measurement
 from scanner import Scanner
 def run_process(fn, *args):
     "Spawn a process and run the function `fn`"
@@ -9,7 +10,7 @@ def run_process(fn, *args):
     process.start()
     return process
 
-Ts = 0.01  # sampling rate
+
 N = 2  # number of IMUs
 
 def main():
@@ -24,7 +25,7 @@ def main():
         process = run_process(measurement.always_read_imu, id, sensor_dict, devices)
         processes.append(process)
 
-    process = run_process(measurement.always_process_data, sensor_dict)
+    process = run_process(dataprocessing.always_process_data, sensor_dict)
     processes.append(process)
 
     for process in processes:
