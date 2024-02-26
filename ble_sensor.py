@@ -436,7 +436,7 @@ class BleSensor:
         stringToPrint += " magX: {:.4f}, magY: {:.4f}, magZ: {:.4f}".format(magX, magY, magZ)
         stringToPrint += " "
         #print(stringToPrint)
-        sensor_data = {'gyro': gyro, 'acc': acc}
+        sensor_data = {'gyro': gyro, 'acc': acc, 'mag':mag}
         asyncio.create_task(self.add_to_queue(sensor_data))
 
         if self.recordFlag:
