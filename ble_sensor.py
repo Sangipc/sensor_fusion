@@ -74,6 +74,8 @@ class BleSensor:
         # self.imu_queues = manager.dict()
         # with Manager() as manager:
         #     self.queue = manager.Queue()
+        self.notification_counter = 0
+        self.start_time = None
 
 
     async def readRecordingAck(self):
@@ -120,13 +122,13 @@ class BleSensor:
         buffer = bytes(data)
         await self._client.write_gatt_char(self.BLE_UUID_RECORDING_CONTROL, buffer, response=False)
         print(f"Successfully wrote data to characteristic")
-        await asyncio.sleep(0.1)  # wait for response
+        #await asyncio.sleep(0.1)  # wait for response
 
     def sendSyncingEvent( self, eventName, parameters ):
         if self.syncManager == None :
             return
         if eventName == 'bleSensorError':
-            time.sleep(0.1)
+            #time.sleep(0.1)
             self.syncManager.eventHandler(eventName, parameters)
             return
         self.syncManager.eventHandler(eventName, parameters)
@@ -134,7 +136,7 @@ class BleSensor:
 
     # Get the tags for fetching Battery Information
     async def getDeviceTag(self):
-        await asyncio.sleep(0.2)  # wait for response
+        #await asyncio.sleep(0.2)  # wait for response
         # Read the device tag
         read_bytes = await self._client.read_gatt_char(self.DOT_Configuration_Control_CharacteristicUUID)
         device_tag_bytes = read_bytes[8:24]
@@ -150,7 +152,7 @@ class BleSensor:
         self.name = await self.getDeviceTag()
         # get battery info
         read_bytes = await self._client.read_gatt_char(self.DOT_Battery_CharacteristicUUID)
-        await asyncio.sleep(0.1)  # wait for response
+        #await asyncio.sleep(0.1)  # wait for response
         batteryLevel = read_bytes[0]
         status = read_bytes[1]
         if status == 1:
@@ -175,12 +177,12 @@ class BleSensor:
 
     async def enable_sensor(self, control_uuid, payload):
         await self._client.write_gatt_char(control_uuid, payload)
-        await asyncio.sleep(0.1)  # wait for response
+        #await asyncio.sleep(0.1)  # wait for response
 
 
 
     async def startMeasurement(self):
-        print("starting measurement")
+        #print("starting measurement")
         if self.payloadType == PayloadMode.orientationEuler:
             print("PayloadMode = orientationEuler")
             await self._client.start_notify(self.DOT_ShortPayload_CharacteristicUUID,
@@ -272,7 +274,7 @@ class BleSensor:
     # Heading Reset
     async def doHeadingReset(self):
         await self._client.write_gatt_char(self.Heading_Reset_Control_CharacteristicUUID, self.Heading_Reset_Buffer)
-        await asyncio.sleep(0.1)  # wait for response
+        #await asyncio.sleep(0.1)  # wait for response
 
     # Set Output rate
     async def setOutputRate(self, outputRate: int):
@@ -412,7 +414,7 @@ class BleSensor:
         if self.queue is not None:
             self.queue.put(sensor_data)
             #print("Data in queue")
-            await asyncio.sleep(0.01)
+            #await asyncio.sleep(0.01)
 
     def rateQuantities_notification_handler(self, sender, data):
 
@@ -438,6 +440,22 @@ class BleSensor:
         #print(stringToPrint)
         sensor_data = {'gyro': gyro, 'acc': acc, 'mag':mag}
         asyncio.create_task(self.add_to_queue(sensor_data))
+
+        #count how many times this fn is called per secondx
+        self.notification_counter += 1
+
+        if self.start_time is None:
+            self.start_time = datetime.now()
+
+        current_time = datetime.now()
+        elapsed_time = (current_time - self.start_time).total_seconds()
+
+        if elapsed_time >= 1:
+            rate_per_second = self.notification_counter / elapsed_time
+            print(f"Rate per second: {rate_per_second}")
+            # Reset counter and timer
+            self.notification_counter = 0
+            self.start_time = datetime.now()
 
         if self.recordFlag:
             dotdata = DotData()

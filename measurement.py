@@ -7,6 +7,7 @@ import dataprocessing
 Ts = 0.01  # sampling rate
 N = 2  # number of IMUs
 sensors = []
+
 async def read_measurement(queue, device):
     sensor_queue = multiprocessing.Manager().Queue()
     _, address = device
@@ -24,17 +25,16 @@ async def read_measurement(queue, device):
     await asyncio.sleep(2)  # wait for response
 
     print("set sensor output rate, only these values allowed: 1, 4, 10, 12, 15, 20, 30, 60, 120")
-    await sensor.setOutputRate(30)
+    await sensor.setOutputRate(60)
 
-    print("Starting measurement reading")
-    print(sensor)
+    #print("Starting measurement reading")
+    #print(sensor)
     sensor.payloadType = ble_sensor.PayloadMode.rateQuantities
     sensor.queue = queue
-    print("From for loop")
     await sensor.startMeasurement()
 
     print("\nNotifications enabled. Waiting for data...")
-    await asyncio.sleep(0.2)  # heading reset
+    #await asyncio.sleep(0.2)  # heading reset
     print("Start Recording")
 
     # default is no recording
@@ -46,16 +46,15 @@ async def read_measurement(queue, device):
     timeToRunInMinute = 0.5
     print(f"run the test for {timeToRunInMinute} minutes")
     while int(round(time.time())) - startTimeSeconds < timeToRunInMinute * 60:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.001)
 
     # stop measurement
     await sensor.stopMeasurement()
-    await asyncio.sleep(0.5)
+    #await asyncio.sleep(0.5)
 
 def always_read_imu(id, sensor_dict, devices):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
     async def read_measurement_wrapper():
         await read_measurement(sensor_dict[id], devices[id])
 

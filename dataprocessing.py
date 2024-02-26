@@ -111,8 +111,8 @@ def always_process_data(sensor_dict):
         quats = process_data(data)  #this gives me 2 quaternions one for each sensor
         #print(quats)    #{0: array([-0.23207212, -0.12451914, -0.50840576, -0.81985431]), 1: array([ 0.40295376, -0.76601632,  0.0574779 , -0.49753749])}
         inclination_1, inclination_2, inclination_3 = calculate_inclination(quats[0], quats[1])
-        print("Sensor 1",inclination_1)
-        print("Sensor 2", inclination_2)
+        # print("Sensor 1",inclination_1)
+        # print("Sensor 2", inclination_2)
         print("Angle between them", inclination_3)
         compute_time = time.time() - t
         still_wait = Ts - compute_time

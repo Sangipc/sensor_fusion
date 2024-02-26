@@ -1,6 +1,6 @@
 import asyncio
 import multiprocessing
-
+import atexit
 import dataprocessing
 import measurement
 from scanner import Scanner
@@ -9,8 +9,6 @@ def run_process(fn, *args):
     process = multiprocessing.Process(target=fn, args=args)
     process.start()
     return process
-
-
 N = 2  # number of IMUs
 
 def main():
