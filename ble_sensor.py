@@ -177,7 +177,7 @@ class BleSensor:
 
     async def enable_sensor(self, control_uuid, payload):
         await self._client.write_gatt_char(control_uuid, payload)
-        #await asyncio.sleep(0.1)  # wait for response
+        await asyncio.sleep(0.1)  # wait for response
 
 
 
@@ -412,12 +412,16 @@ class BleSensor:
 
     async def add_to_queue(self, sensor_data):
         if self.queue is not None:
-            self.queue.put(sensor_data)
+            if not self.queue.empty():
+                asyncio.sleep(0)
+            else:
+                self.queue.put(sensor_data)
+
             #print("Data in queue")
             #await asyncio.sleep(0.01)
 
     def rateQuantities_notification_handler(self, sender, data):
-
+        #print("YOOOOOO")
         hexData = data.hex()
         time = self.setSynchronizedTimestamp(hexData)
         acc = self.accConvert(hexData)

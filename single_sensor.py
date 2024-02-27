@@ -16,7 +16,7 @@ def main():
     sensor_dict = manager.dict()
     devices = asyncio.run(Scanner.scan_and_filter_xsens_dot())
     devices = [(device.name, device.address) for device in devices]
-    print(devices)
+    #print(devices)
     processes = []
     for id in range(N):
         sensor_dict[id] = manager.Queue()

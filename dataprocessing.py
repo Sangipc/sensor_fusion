@@ -85,15 +85,19 @@ def calculate_inclination(Q1, Q2):
     #print(Q1)
     #print(dictt)
 
-    relative_quaternions = resQuat_Q1 * qmt.qinv(resQuat_Q2)
+    relative_quaternions21 = qmt.qmult(resQuat_Q1,qmt.qinv(resQuat_Q2))
+    relative_quaternions12 = qmt.qmult(qmt.qinv(resQuat_Q2), resQuat_Q1)
     #relative_quaternions = relative_quaternion(Q1, Q2)
-    heading_1, inclination_1 = qmt.headingInclinationAngle(Q1)
-    heading_2, inclination_2 = qmt.headingInclinationAngle(Q2)
-    heading_3, inclination_3 = qmt.headingInclinationAngle(relative_quaternions)
+    heading_1, inclination_1 = qmt.headingInclinationAngle(resQuat_Q1)
+    heading_2, inclination_2 = qmt.headingInclinationAngle(resQuat_Q2)
+    heading_3, inclination_21 = qmt.headingInclinationAngle(relative_quaternions21)
+    heading_3, inclination_12 = qmt.headingInclinationAngle(relative_quaternions12)
+    #inclination_3 = abs(inclination_1 - inclination_2)
     inclination_1 = np.degrees(inclination_1)
     inclination_2 = np.degrees(inclination_2)
-    inclination_3 = np.degrees(inclination_3)
-    return inclination_1, inclination_2, inclination_3
+    inclination_21 = np.degrees(inclination_21)
+    inclination_12 = np.degrees(inclination_12)
+    return inclination_1, inclination_2, inclination_21, inclination_12
 
 def always_process_data(sensor_dict):
     global calls_per_second
@@ -110,10 +114,11 @@ def always_process_data(sensor_dict):
         # {'gyro': array([ 0.21070607, -0.36701715, -0.39044639]), 'acc': array([-0.12048834, -0.07399426,  9.43940926])}
         quats = process_data(data)  #this gives me 2 quaternions one for each sensor
         #print(quats)    #{0: array([-0.23207212, -0.12451914, -0.50840576, -0.81985431]), 1: array([ 0.40295376, -0.76601632,  0.0574779 , -0.49753749])}
-        inclination_1, inclination_2, inclination_3 = calculate_inclination(quats[0], quats[1])
-        # print("Sensor 1",inclination_1)
-        # print("Sensor 2", inclination_2)
-        print("Angle between them", inclination_3)
+        inclination_1, inclination_2, inclination_21, inclination_12 = calculate_inclination(quats[0], quats[1])
+        print("Sensor 1",inclination_1)
+        print("Sensor 2", inclination_2)
+        print("inclination21", inclination_21)
+        print("inclination12", inclination_12)
         compute_time = time.time() - t
         still_wait = Ts - compute_time
         if still_wait <= 0:

@@ -43,14 +43,14 @@ async def read_measurement(queue, device):
 
     # Run within the timeToRunInMinute time range.
     startTimeSeconds = int(round(time.time()))
-    timeToRunInMinute = 0.5
+    timeToRunInMinute = 20
     print(f"run the test for {timeToRunInMinute} minutes")
     while int(round(time.time())) - startTimeSeconds < timeToRunInMinute * 60:
         await asyncio.sleep(0.001)
 
     # stop measurement
     await sensor.stopMeasurement()
-    #await asyncio.sleep(0.5)
+    await asyncio.sleep(0.5)
 
 def always_read_imu(id, sensor_dict, devices):
     loop = asyncio.new_event_loop()
