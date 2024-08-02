@@ -24,7 +24,17 @@ Accurate tracking of joint angles is crucial for understanding human movement pa
 
 ### Introduction
 
-This project aims to facilitate the real-time tracking of knee joint angles using Movella DOT Xsens IMUs in a MacOS environment. The application addresses the gap in data acquisition protocols for MacOS and leverages machine learning algorithms for enhanced accuracy and ease of use. This tool is particularly useful for professionals in rehabilitation, sports science, and ergonomics.
+This project provides a real-time solution for tracking knee joint angles using Movella DOT Xsens Inertial Measurement Units (IMUs) within a MacOS environment. The system is designed to bridge the gap in data acquisition protocols specific to MacOS, addressing the lack of support and optimization for this platform compared to Windows and Linux.
+
+#### What is this project about?
+
+Knee joint angle tracking is essential for various applications including biomechanics research, rehabilitation, sports science, and ergonomics. Traditional methods for measuring joint angles often involve bulky equipment and high costs, which can limit their practical application in everyday settings.
+
+This project leverages Movella DOT Xsens IMUs, which are compact, affordable, and highly accurate inertial sensors. The approach utilizes advanced quaternion-based filtering techniques to ensure accurate tracking even in dynamic and challenging conditions. 
+
+The software is built to operate seamlessly on MacOS, using Python for its implementation. It manages real-time data acquisition from the IMUs, processes this data through multiple processes, and continuously computes the knee joint angles. This allows users to monitor joint angles effectively and obtain valuable insights into movement patterns and biomechanical function.
+
+Overall, this project offers a reliable, cost-effective, and user-friendly solution for knee joint angle tracking, making it accessible for researchers, practitioners, and enthusiasts interested in biomechanics and human movement analysis.
 
 ### Features
 
