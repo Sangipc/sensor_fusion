@@ -1,0 +1,8 @@
+asyncio
+multiprocessing
+atexit
+bleak
+numpy
+qmt
+VQF
+matplotlib
