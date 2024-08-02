@@ -53,13 +53,19 @@ Overall, this project offers a reliable, cost-effective, and user-friendly solut
 
 ## Installation ##
 
-1. Clone the repository:
+1. **Clone the repository:**
 
 ```
 git clone https://github.com/Sangipc/sensor_fusion.git
 ```
 
-2. Ensure that all the required libraries are installed:
+2. **Install the required packages:**
+
+```
+pip install -r requirements.txt
+```
+
+3. **Ensure that all the required libraries are installed:**
 
 * `asyncio`
 * `multiprocessing`
